@@ -97,59 +97,6 @@ program dumper
    call dmp
 
 contains 
-   subroutine userin
-      character(len=999) s
-      lnoisy = .false.
-      write(0,'(a)', advance='no')'fname: '
-      read(*, '(a)') fname
-      write(0, *) trim(fname)
-
-      write(0,'(a)', advance='no')'i,j: '
-      read(*, *, iostat=ios) idbg, jdbg
-      if (ios /= 0) then
-         write(0, *) 'not specified, using default'
-      endif
-      write(0, *) idbg, jdbg
-
-      write(0,'(a)', advance='no') 'btime (yyyyjjjhh ssss): '
-      read(*, *, iostat=ios) idh0,isec0
-      if (ios /= 0) then
-         write(0, *) 'not specified, using default'
-      endif
-      write(0,*) idh0, isec0
-
-      write(0,'(a)', advance='no') 'etime (yyyyjjjhh ssss): '
-      read(*, *, iostat=ios) idh1,isec1
-      if (ios /= 0) then
-         write(0, *) 'not specified, using default'
-      endif
-      write(0,*) idh1, isec1
-
-      novar = 0
-      write(0,'(a)', advance='no') 'variables (blank to all)'
-      do while(.true.)
-        read(*, '(a)', iostat=ios) s
-        if (ios/=0) then
-           s= ''
-        endif
-        if (s=='') then
-           if (novar==0) then
-              write(0, *) 'not specified, output all var'
-           else
-              write(0, *) 'finished, n=', novar
-           endif
-           exit
-        endif
-        novar=novar+1
-        ovar(novar) = trim(s)
-      enddo
-
-      ! filename
-      ! i,j cell to dump
-      ! time to dump
-      ! variable to dump
-
-   end subroutine
 
    subroutine scn
       integer :: ic, ios, i
@@ -480,6 +427,82 @@ contains
 
          
       enddo
+
+   end subroutine
+
+   subroutine userin
+      character(len=999) s
+      lnoisy = .false.
+      write(0,'(a)', advance='no')'fname: '
+      read(*, '(a)') fname
+      write(0, *) trim(fname)
+
+      write(0,'(a)', advance='no')'i,j: '
+      s = ''
+      read(*, '(a)', iostat=ios) s
+      if (ios /= 0 .or. s == '') then
+         write(0, *) 'not specified, using default'
+      else
+         read(s, *, iostat=ios) idbg, jdbg
+         if (ios /= 0 ) then
+            write(0,*) 'cannot parse ijdx: ', trim(s)
+            stop
+         endif
+      endif
+      write(0, *) idbg, jdbg
+
+      write(0,'(a)', advance='no') 'btime (yyyyjjjhh ssss): '
+      s = ''
+      read(*, '(a)', iostat=ios) s
+      if (ios /= 0 .or. s == '') then
+         write(0, *) 'not specified, using default'
+      else
+         read(s, *, iostat=ios) idh0, isec0
+         if (ios /= 0 ) then
+            write(0,*) 'cannot parse btime: ', trim(s)
+            stop
+         endif
+      endif
+      write(0,*) idh0, isec0
+
+      write(0,'(a)', advance='no') 'etime (yyyyjjjhh ssss): '
+      s = ''
+      read(*, '(a)', iostat=ios) s
+      if (ios /= 0 .or. s == '') then
+         write(0, *) 'not specified, using default'
+      else
+         read(s, *, iostat=ios) idh1,isec1
+         if (ios /= 0 ) then
+            write(0,*) 'cannot parse etime: ', trim(s)
+            stop
+         endif
+      endif
+      write(0,*) idh1, isec1
+
+      novar = 0
+      write(0,'(a)', advance='no') 'variables (blank to all): '
+      do while(.true.)
+        read(*, '(a)', iostat=ios) s
+        if (ios/=0) then
+           s= ''
+        endif
+        if (s=='') then
+           if (novar==0) then
+              write(0, *) 'not specified, output all var'
+           else
+              write(0, *) 'finished, n=', novar
+           endif
+           exit
+        endif
+        novar=novar+1
+        ovar(novar) = trim(s)
+        write(0, '(a)', advance='no') ' more variable (blank to end): '
+      enddo
+
+      ! filename
+      ! i,j cell to dump
+      ! time to dump
+      ! variable to dump
 
    end subroutine
 
