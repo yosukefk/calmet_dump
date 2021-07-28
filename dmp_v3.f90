@@ -49,6 +49,7 @@ program dumper
    idh1= 209936624
    isec0=0
    isec1=3600
+   novar = -99
    !n = iargc()
    n = command_argument_count()
    if (n == 1) then
@@ -144,7 +145,8 @@ contains
 
       ! i dont know why i cannot preduct # of records...
       !allocate(clabs(nx*ny*irlg*4+100))
-      allocate(clabs(99999))
+      !allocate(clabs(99999))
+      allocate(clabs(999999))
       !print*,nx*ny*irlg*4+100
 
       nclab = 0
@@ -213,31 +215,31 @@ contains
          elseif (clab == 'Z0') then
             read(11)clab,idum(1:4),z0
             if(lnoisy) print*,clab, idum(1:4),z0(idbg,jdbg)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                write(*,fmtf) clab, 0, 0, 0, 0,idbg,jdbg,0, z0(idbg,jdbg)
             endif
          elseif (clab == 'ILANDU') then
             read(11)clab,idum(1:4),ilandu
             if(lnoisy) print*,clab, idum(1:4),ilandu(idbg,jdbg)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                write(*,fmti) clab, 0, 0, 0, 0,idbg,jdbg,0, ilandu(idbg,jdbg)
             endif
          elseif (clab == 'ELEV') then
             read(11)clab,idum(1:4),elev
             if(lnoisy) print*,clab, idum(1:4),elev(idbg,jdbg)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                write(*,fmtf) clab, 0, 0, 0, 0,idbg,jdbg,0, elev(idbg,jdbg)
             endif
          elseif (clab == 'XLAI') then
             read(11)clab,idum(1:4),xlai
             if(lnoisy) print*,clab, idum(1:4),xlai(idbg,jdbg)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                write(*,fmtf) clab, 0, 0, 0, 0,idbg,jdbg,0, xlai(idbg,jdbg)
             endif
          elseif (clab == 'NEARS') then
             read(11)clab,idum(1:4),nears
             if(lnoisy) print*,clab, idum(1:4),nears(idbg,jdbg)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                write(*,fmti) clab, 0, 0, 0, 0,idbg,jdbg,0, nears(idbg,jdbg)
             endif
          else
@@ -255,7 +257,7 @@ contains
             read(clab(6:8),*)k
             read(11)clab,idum(1:4),uu(:,:,k)
             if(lnoisy) print*, clab,idum(1:4),uu(idbg,jdbg,k)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                write(clab(6:8), '("   ")')
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
@@ -267,7 +269,7 @@ contains
             read(clab(6:8),*)k
             read(11)clab,idum(1:4),vv(:,:,k)
             if(lnoisy) print*, clab,idum(1:4),vv(idbg,jdbg,k)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                write(clab(6:8), '("   ")')
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
@@ -279,7 +281,7 @@ contains
             read(clab(6:8),*)k
             read(11)clab,idum(1:4),ww(:,:,k)
             if(lnoisy) print*, clab,idum(1:4),ww(idbg,jdbg,k)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                write(clab(6:8), '("   ")')
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
@@ -291,7 +293,7 @@ contains
             read(clab(6:8),*)k
             read(11)clab,idum(1:4),tt(:,:,k)
             if(lnoisy) print*, clab,idum(1:4),tt(idbg,jdbg,k)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                write(clab(6:8), '("   ")')
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
@@ -303,7 +305,7 @@ contains
             read(11)clab,idum(1:4),ipgt
             k = 1
             if(lnoisy) print*, clab,idum(1:4),ipgt(idbg,jdbg)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
                   (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
@@ -314,7 +316,7 @@ contains
             read(11)clab,idum(1:4),ustar
             k = 1
             if(lnoisy) print*, clab,idum(1:4),ustar(idbg,jdbg)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
                   (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
@@ -325,7 +327,7 @@ contains
             read(11)clab,idum(1:4),zi
             k = 1
             if(lnoisy) print*, clab,idum(1:4),zi(idbg,jdbg)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
                   (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
@@ -336,7 +338,7 @@ contains
             read(11)clab,idum(1:4),el
             k = 1
             if(lnoisy) print*, clab,idum(1:4),el(idbg,jdbg)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
                   (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
@@ -347,7 +349,7 @@ contains
             read(11)clab,idum(1:4),wstar
             k = 1
             if(lnoisy) print*, clab,idum(1:4),wstar(idbg,jdbg)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
                   (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
@@ -358,7 +360,7 @@ contains
             read(11)clab,idum(1:4),rmm
             k = 1
             if(lnoisy) print*, clab,idum(1:4),rmm(idbg,jdbg)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
                   (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
@@ -369,7 +371,7 @@ contains
             read(11)clab,idum(1:4),tempk
             k = 1
             if(lnoisy) print*, clab,idum(1:4),tempk(idbg,jdbg)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
                   (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
@@ -380,7 +382,7 @@ contains
             read(11)clab,idum(1:4),rho
             k = 1
             if(lnoisy) print*, clab,idum(1:4),rho(idbg,jdbg)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
                   (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
@@ -391,7 +393,7 @@ contains
             read(11)clab,idum(1:4),qsw
             k = 1
             if(lnoisy) print*, clab,idum(1:4),qsw(idbg,jdbg)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
                   (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
@@ -402,7 +404,7 @@ contains
             read(11)clab,idum(1:4),irh
             k = 1
             if(lnoisy) print*, clab,idum(1:4),irh(idbg,jdbg)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
                   (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
@@ -413,7 +415,7 @@ contains
             read(11)clab,idum(1:4),ipcode
             k = 1
             if(lnoisy) print*, clab,idum(1:4),ipcode(idbg,jdbg)
-            if (novar <= 0 .or. any(clab == ovar)) then
+            if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
                   (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
