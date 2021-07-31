@@ -171,7 +171,7 @@ contains
 
    subroutine dmp
       integer :: ic,ityp, ilab
-      character(len=80) :: fmtf, fmti
+      character(len=80) :: fmtf, fmti, fmta
       read(11)dataset, dataver, datamod
       read(11)ncom
       do i=1,ncom
@@ -186,8 +186,10 @@ contains
 
       fmtf = "(a8,',',2(i9,',',i4,','),3(i4,','),e14.7)"
       fmti = "(a8,',',2(i9,',',i4,','),3(i4,','),i14)"
+      fmta = "(a8,',',2(a9,',',a4,','),3(a4,','),a14)"
       ! data
       !print*,ncheader
+      if (.not.lnoisy) write(*,fmta) 'variable', 'bdh', 'bsec', 'edh', 'esec','i','j','k', 'value'
       do ic=1,ncheader
          clab=clabs(ic)
          !print*,ic,clab
@@ -261,7 +263,7 @@ contains
                write(clab(6:8), '("   ")')
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
-                  (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
+                  (idum(1) < idh1 .or. (idum(1) == idh1 .and. idum(2) <= isec1)) ) then
                   write(*,fmtf) clab, idum(1:4), idbg,jdbg,k,uu(idbg,jdbg,k)
                endif
             endif
@@ -273,7 +275,7 @@ contains
                write(clab(6:8), '("   ")')
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
-                  (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
+                  (idum(1) < idh1 .or. (idum(1) == idh1 .and. idum(2) <= isec1)) ) then
                   write(*,fmtf) clab, idum(1:4), idbg,jdbg,k,vv(idbg,jdbg,k)
                endif
             endif
@@ -285,7 +287,7 @@ contains
                write(clab(6:8), '("   ")')
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
-                  (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
+                  (idum(1) < idh1 .or. (idum(1) == idh1 .and. idum(2) <= isec1)) ) then
                   write(*,fmtf) clab, idum(1:4), idbg,jdbg,k,ww(idbg,jdbg,k)
                endif
             endif
@@ -297,7 +299,7 @@ contains
                write(clab(6:8), '("   ")')
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
-                  (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
+                  (idum(1) < idh1 .or. (idum(1) == idh1 .and. idum(2) <= isec1)) ) then
                   write(*,fmtf) clab, idum(1:4), idbg,jdbg,k,tt(idbg,jdbg,k)
                endif
             endif
@@ -308,7 +310,7 @@ contains
             if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
-                  (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
+                  (idum(1) < idh1 .or. (idum(1) == idh1 .and. idum(2) <= isec1)) ) then
                   write(*,fmti) clab, idum(1:4), idbg,jdbg,k,ipgt(idbg,jdbg)
                endif
             endif
@@ -319,7 +321,7 @@ contains
             if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
-                  (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
+                  (idum(1) < idh1 .or. (idum(1) == idh1 .and. idum(2) <= isec1)) ) then
                   write(*,fmtf) clab, idum(1:4), idbg,jdbg,k,ustar(idbg,jdbg)
                endif
             endif
@@ -330,7 +332,7 @@ contains
             if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
-                  (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
+                  (idum(1) < idh1 .or. (idum(1) == idh1 .and. idum(2) <= isec1)) ) then
                   write(*,fmtf) clab, idum(1:4), idbg,jdbg,k,zi(idbg,jdbg)
                endif
             endif
@@ -341,7 +343,7 @@ contains
             if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
-                  (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
+                  (idum(1) < idh1 .or. (idum(1) == idh1 .and. idum(2) <= isec1)) ) then
                   write(*,fmtf) clab, idum(1:4), idbg,jdbg,k,el(idbg,jdbg)
                endif
             endif
@@ -352,7 +354,7 @@ contains
             if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
-                  (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
+                  (idum(1) < idh1 .or. (idum(1) == idh1 .and. idum(2) <= isec1)) ) then
                   write(*,fmtf) clab, idum(1:4), idbg,jdbg,k,wstar(idbg,jdbg)
                endif
             endif
@@ -363,7 +365,7 @@ contains
             if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
-                  (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
+                  (idum(1) < idh1 .or. (idum(1) == idh1 .and. idum(2) <= isec1)) ) then
                   write(*,fmtf) clab, idum(1:4), idbg,jdbg,k,rmm(idbg,jdbg)
                endif
             endif
@@ -374,7 +376,7 @@ contains
             if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
-                  (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
+                  (idum(1) < idh1 .or. (idum(1) == idh1 .and. idum(2) <= isec1)) ) then
                   write(*,fmtf) clab, idum(1:4), idbg,jdbg,k,tempk(idbg,jdbg)
                endif
             endif
@@ -385,7 +387,7 @@ contains
             if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
-                  (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
+                  (idum(1) < idh1 .or. (idum(1) == idh1 .and. idum(2) <= isec1)) ) then
                   write(*,fmtf) clab, idum(1:4), idbg,jdbg,k,rho(idbg,jdbg)
                endif
             endif
@@ -396,7 +398,7 @@ contains
             if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
-                  (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
+                  (idum(1) < idh1 .or. (idum(1) == idh1 .and. idum(2) <= isec1)) ) then
                   write(*,fmtf) clab, idum(1:4), idbg,jdbg,k,qsw(idbg,jdbg)
                endif
             endif
@@ -407,7 +409,7 @@ contains
             if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
-                  (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
+                  (idum(1) < idh1 .or. (idum(1) == idh1 .and. idum(2) <= isec1)) ) then
                   write(*,fmti) clab, idum(1:4), idbg,jdbg,k,irh(idbg,jdbg)
                endif
             endif
@@ -418,7 +420,7 @@ contains
             if (novar == 0 .or. any(clab == ovar)) then
                if (k==kdbg .and. &
                   (idum(1) > idh0 .or. (idum(1) == idh0 .and. idum(2) >= isec0)) .and. &
-                  (idum(3) < idh1 .or. (idum(3) == idh1 .and. idum(4) <= isec1)) ) then
+                  (idum(1) < idh1 .or. (idum(1) == idh1 .and. idum(2) <= isec1)) ) then
                   write(*,fmti) clab, idum(1:4), idbg,jdbg,k,ipcode(idbg,jdbg)
                endif
             endif
@@ -464,6 +466,9 @@ contains
             write(0,*) 'cannot parse btime: ', trim(s)
             stop
          endif
+         ! update default for endtime
+         idh1 = idh0
+         isec1 = isec0
       endif
       write(0,*) idh0, isec0
 
