@@ -10,6 +10,6 @@ default: dmp
 #default: scn
 
 dmp:
-	$(F95) $(FFLAGS) -o calmet_dump dmp_v3.f90
+	$(F95) $(FFLAGS) -o calmet_dump dmp.f90
 scn:
 	$(F95) $(FFLAGS) -o calmet_scan scn.f90
