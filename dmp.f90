@@ -30,7 +30,7 @@ program dumper
 
    integer :: ncom
    integer ::ibyr,ibmo,ibdy,ibhr,ibsec,ieyr,iemo,iedy,iehr,iesec,irlg,irtype,nx,ny,nz,&
-           nssta,nusta,npsta,nowsta,nlu,iwat1,iwat2,iutmzn
+           nssta,nusta,npsta,nowsta,nlu,iwat1,iwat2,iutmzn, iwfcod
    real :: dgrid, xorigr,yorigr,feast,fnorth,rnlat0,relon0,xlat1,xlat2
    logical :: lcalgrd
    real, allocatable, dimension(:) :: zfacem,xssta,yssta,xusta,yusta,xpsta,ypsta
@@ -151,16 +151,20 @@ contains
       character(len=*), parameter :: zface_name = 'Zface'
       character(len=*), parameter :: yyy_name = 'Y'
       character(len=*), parameter :: xxx_name = 'X'
+      character(len=*), parameter :: lon_name = 'longitude'
+      character(len=*), parameter :: lat_name = 'latitude'
       character(len=*), parameter :: tim_name = 'Time'
       character(len=*), parameter :: tnchar_name = 'DateStrLen'
 
-      integer :: lvl_dimid, yyy_dimid, xxx_dimid, tim_dimid, zface_dimid, tnchar_dimid
+      integer :: lvl_dimid, yyy_dimid, xxx_dimid, tim_dimid, zface_dimid, tnchar_dimid, lon_varid, lat_varid
 
       integer :: zface_varid, xxx_varid, yyy_varid, tim_varid
 
       character(len=*), parameter :: units = 'units'
       character(len=*), parameter :: xxx_units = 'm'
       character(len=*), parameter :: yyy_units = 'm'
+      character(len=*), parameter :: lon_units = 'degree_east'
+      character(len=*), parameter :: lat_units = 'degree_north'
 
       integer :: z0_varid, lu_varid, elev_varid, lai_varid
 
@@ -176,12 +180,22 @@ contains
 
       real, dimension(:), allocatable :: xxx
       real, dimension(:), allocatable :: yyy
+      real, dimension(:,:), allocatable :: lon
+      real, dimension(:,:), allocatable :: lat
 
       integer :: ic, ii, jj
       character(len=8) :: clab0
       character(len=19) :: tstamp, lst_tstamp
       integer :: tdx, lst_tdx
       integer :: status
+      real :: rdum, tmsone
+      integer :: idum1
+      character(len=12) :: caction
+      real(kind=8), dimension(9) :: vecti, vecto
+      character(len=8) :: pmapo
+      character(len=4) :: utmhem2
+      integer :: iutmzn2
+
 
       print*,oname
 
@@ -194,8 +208,25 @@ contains
       ! header, scalar part
       read(11)ibyr,ibmo,ibdy,ibhr,ibsec,ieyr,iemo,iedy,iehr,iesec,axtz,&
               irlg,irtype,nx,ny,nz,dgrid,xorigr,yorigr,&
-              nssta,nusta,npsta,nowsta,nlu,iwat1,iwat2,lcalgrd,pmap,datum,daten,&
+              iwfcod,nssta,nusta,npsta,nowsta,nlu,iwat1,iwat2,lcalgrd,pmap,datum,daten,&
               feast,fnorth,utmhem,iutmzn,rnlat0,relon0,xlat1,xlat2
+
+      pmapo = 'LL'
+
+      tmsone =  1.
+      print*,axtz
+      print*, xorigr, yorigr
+      print*,pmap, datum, rnlat0, relon0
+      print*,pmap, iutmzn, tmsone, xlat1, xlat2, rnlat0, relon0, feast, fnorth
+      print*
+      print*, vecti
+      print*
+      print*, vecto
+      call globe1(pmap, iutmzn, tmsone,xlat1, xlat2, rnlat0, relon0,  &
+                  feast, fnorth, &
+                  pmapo, idum1, rdum, rdum, rdum, rdum, rdum, &
+                  rdum, rdum, &
+                  caction, vecti, vecto)
 
       ! create file
       call check( nf90_create(oname, nf90_clobber, ncid) )
@@ -209,19 +240,30 @@ contains
       call check( nf90_def_dim( ncid, zface_name, nz+1, zface_dimid) )
 
       ! define coord vars
+      call check( nf90_def_var( ncid, lon_name, nf90_real, (/xxx_dimid, yyy_dimid/), lon_varid) )
+      call check( nf90_def_var( ncid, lat_name, nf90_real, (/xxx_dimid, yyy_dimid/), lat_varid) )
       call check( nf90_def_var( ncid, xxx_name, nf90_real, xxx_dimid, xxx_varid))
       call check( nf90_def_var( ncid, yyy_name, nf90_real, yyy_dimid, yyy_varid))
       call check( nf90_def_var( ncid, tim_name, nf90_char, (/tnchar_dimid, tim_dimid/),  tim_varid))
 
       call check( nf90_put_att( ncid, xxx_varid, units, xxx_units) )
       call check( nf90_put_att( ncid, yyy_varid, units, yyy_units) )
+      call check( nf90_put_att( ncid, lon_varid, units, lon_units) )
+      call check( nf90_put_att( ncid, lat_varid, units, lat_units) )
 
-      allocate(xxx(nx), yyy(ny))
+      allocate(xxx(nx), yyy(ny), lon(nx, ny), lat(nx,ny))
       do ii = 1, nx
          xxx(ii) = xorigr + (ii-1) * dgrid + .5 * dgrid
       enddo
       do jj = 1, ny
          yyy(jj) = yorigr + (jj-1) * dgrid + .5 * dgrid
+      enddo
+
+      do ii=1,nx
+         do jj=1,ny
+            call globe(6, caction, datum, vecti, datum, vecto, &
+               xxx(ii)*.001, yyy(jj)*.001, lon(ii,jj), lat(ii,jj), iutmzn2, utmhem2)
+         enddo
       enddo
 
 
@@ -348,6 +390,8 @@ contains
 
       call check( nf90_put_var( ncid, xxx_varid, xxx ) )
       call check( nf90_put_var( ncid, yyy_varid, yyy ) )
+      call check( nf90_put_var( ncid, lon_varid, lon ) )
+      call check( nf90_put_var( ncid, lat_varid, lat ) )
 
       do ic=1,ncheader
          clab=clabs(ic)
@@ -368,8 +412,6 @@ contains
             call check( nf90_put_var( ncid, lai_varid, xlai ) )
          endif
       enddo
-
-      print*,'xxxxxx'
 
       lst_tstamp = ''
       lst_tdx = 0
@@ -436,8 +478,6 @@ contains
                   if (ipcode_varid /= 0) then
                      call check (nf90_put_var( ncid, ipcode_varid, ipcode, start=(/1,1, lst_tdx/)) )
                   endif
-                  call check( nf90_close( ncid))
-                  stop
                endif
                lst_tstamp = tstamp
                lst_tdx = tdx
@@ -481,6 +521,59 @@ contains
             stop
          endif
       enddo
+
+      ! dump the last tstep
+      if (lst_tstamp /= '') then
+         print*, 'tim', tstamp
+         call check (nf90_put_var( ncid, tim_varid, tstamp, start=(/1, lst_tdx/)))
+         ! write values
+         if (uu_varid /= 0) then
+            call check (nf90_put_var( ncid, uu_varid, uu, start=(/1,1,1, lst_tdx/)) )
+         endif
+         if (vv_varid /= 0) then
+            call check (nf90_put_var( ncid, vv_varid, vv, start=(/1,1,1, lst_tdx/)) )
+         endif
+         if (ww_varid /= 0) then
+            call check (nf90_put_var( ncid, ww_varid, ww, start=(/1,1,1, lst_tdx/)) )
+         endif
+         if (tt_varid /= 0) then
+            call check (nf90_put_var( ncid, tt_varid, tt, start=(/1,1,1, lst_tdx/)) )
+         endif
+         if (ipgt_varid /= 0) then
+            call check (nf90_put_var( ncid, ipgt_varid, ipgt, start=(/1,1, lst_tdx/)) )
+         endif
+         if (ust_varid /= 0) then
+            call check (nf90_put_var( ncid, ust_varid, ustar, start=(/1,1, lst_tdx/)) )
+         endif
+         if (zi_varid /= 0) then
+            call check (nf90_put_var( ncid, zi_varid, zi, start=(/1,1, lst_tdx/)) )
+         endif
+         if (el_varid /= 0) then
+            call check (nf90_put_var( ncid, el_varid, el, start=(/1,1, lst_tdx/)) )
+         endif
+         if (wst_varid /= 0) then
+            call check (nf90_put_var( ncid, wst_varid, wstar, start=(/1,1, lst_tdx/)) )
+         endif
+         if (rmm_varid /= 0) then
+            call check (nf90_put_var( ncid, rmm_varid, rmm, start=(/1,1, lst_tdx/)) )
+         endif
+         if (tempk_varid /= 0) then
+            call check (nf90_put_var( ncid, tempk_varid, tempk, start=(/1,1, lst_tdx/)) )
+         endif
+         if (rho_varid /= 0) then
+            call check (nf90_put_var( ncid, rho_varid, rho, start=(/1,1, lst_tdx/)) )
+         endif
+         if (qsw_varid /= 0) then
+            call check (nf90_put_var( ncid, qsw_varid, qsw, start=(/1,1, lst_tdx/)) )
+         endif
+         if (irh_varid /= 0) then
+            call check (nf90_put_var( ncid, irh_varid, irh, start=(/1,1, lst_tdx/)) )
+         endif
+         if (ipcode_varid /= 0) then
+            call check (nf90_put_var( ncid, ipcode_varid, ipcode, start=(/1,1, lst_tdx/)) )
+         endif
+      endif
+
 
 
       
@@ -547,7 +640,7 @@ contains
       ! header, scalar part
       read(11)ibyr,ibmo,ibdy,ibhr,ibsec,ieyr,iemo,iedy,iehr,iesec,axtz,&
               irlg,irtype,nx,ny,nz,dgrid,xorigr,yorigr,&
-              nssta,nusta,npsta,nowsta,nlu,iwat1,iwat2,lcalgrd,pmap,datum,daten,&
+              iwfcod,nssta,nusta,npsta,nowsta,nlu,iwat1,iwat2,lcalgrd,pmap,datum,daten,&
               feast,fnorth,utmhem,iutmzn,rnlat0,relon0,xlat1,xlat2
 
       if (lnoisy) then
@@ -600,7 +693,7 @@ contains
       ! header, scalar part
       read(11)ibyr,ibmo,ibdy,ibhr,ibsec,ieyr,iemo,iedy,iehr,iesec,axtz,&
               irlg,irtype,nx,ny,nz,dgrid,xorigr,yorigr,&
-              nssta,nusta,npsta,nowsta,nlu,iwat1,iwat2,lcalgrd,pmap,datum,daten,&
+              iwfcod,nssta,nusta,npsta,nowsta,nlu,iwat1,iwat2,lcalgrd,pmap,datum,daten,&
               feast,fnorth,utmhem,iutmzn,rnlat0,relon0,xlat1,xlat2
 
       fmtf = "(a8,',',2(i9,',',i4,','),3(i4,','),e14.7)"
