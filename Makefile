@@ -1,6 +1,9 @@
 # for intel fortran
-FFLAGS=-g -traceback -O0 -check bounds
+NCDDIR=${TACC_NETCDF_DIR}
+FFLAGS=-g -traceback -O0 -check bounds -I$(NCDDIR)/include
 F95=ifort
+LIBS=-L$(NCDDIR)/lib -lnetcdff -lnetcdf
+
 
 # for gnu fortran
 ### FFLAGS=-g 
@@ -10,6 +13,6 @@ default: dmp
 #default: scn
 
 dmp:
-	$(F95) $(FFLAGS) -o calmet_dump dmp.f90
+	$(F95) $(FFLAGS) -o calmet_dump dmp.f90 $(LIBS)
 scn:
 	$(F95) $(FFLAGS) -o calmet_scan scn.f90

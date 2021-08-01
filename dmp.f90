@@ -3,7 +3,7 @@ program dumper
    use ieee_arithmetic
    implicit none
 
-   character(len=999) :: fname
+   character(len=999) :: fname, oname
    integer, external :: iargc
    character(len=999) :: buf
    character(len=16) dataset, dataver
@@ -25,6 +25,8 @@ program dumper
    integer :: idbg, jdbg,kdbg
    integer :: nclab, ncheader
    logical :: lnoisy
+   logical :: lncf
+
 
    integer :: ncom
    integer ::ibyr,ibmo,ibdy,ibhr,ibsec,ieyr,iemo,iedy,iehr,iesec,irlg,irtype,nx,ny,nz,&
@@ -37,7 +39,7 @@ program dumper
    real, allocatable, dimension(:,:,:) :: uu,vv,ww,tt
 
    integer,dimension(99) :: idum
-   integer :: n,i,k,it,ios
+   integer :: n,i,k,it,ios,ipos
 
    ! get file name
 
@@ -50,28 +52,62 @@ program dumper
    isec0=0
    isec1=3600
    novar = -99
+   lncf = .false.
    !n = iargc()
    n = command_argument_count()
    if (n == 1) then
       !call getarg(1, fname)
       call get_command_argument(1, fname)
-   elseif (n == 3) then
+
+   elseif (n <= 3) then
       !call getarg(1, fname)
       call get_command_argument(1, fname)
-      read(fname, *, iostat=ios) idbg
-      if (ios /= 0) then
-         print*,'arg1 parse error: ', trim(fname)
-         call usage
+
+      print*,'"' // fname // '"'
+      print*,'"' // fname(1:1) // '"'
+      print*,fname(1:1)=='-'
+
+      ! case 1, -ncf fname oname
+      if (fname(1:1) == '-') then
+         if (fname(1:2)=='-n' .or. fname(1:2)=='-N' .or. fname(1:3)=='--n' .or. fname(1:3) =='--N') then
+            lncf = .true.
+         else
+            print*,'unknown option: ', trim(fname)
+            call usage
+         endif
+
+         call get_command_argument(2, fname)
+         if (n > 2) then
+            call get_command_argument(3, oname)
+         else
+            ipos=len_trim(fname)-3
+            print*,'ipos',ipos
+            print*,fname(ipos:ipos)
+            if (fname(ipos:ipos)=='.') then
+               oname = fname(1:ipos) // 'nc'
+            else
+               oname = fname(1:len_trim(fname)) // '.nc'
+            endif
+         endif
+
+      else
+
+         ! case 2 idx jdx
+         read(fname, *, iostat=ios) idbg
+         if (ios /= 0) then
+            print*,'arg1 parse error: ', trim(fname)
+            call usage
+         endif
+         !call getarg(2, fname)
+         call get_command_argument(2, fname)
+         read(fname, *, iostat=ios) jdbg
+         if (ios /= 0) then
+            print*,'arg2 parse error: ', trim(fname)
+            call usage
+         endif
+         !call getarg(3, fname)
+         call get_command_argument(3, fname)
       endif
-      !call getarg(2, fname)
-      call get_command_argument(2, fname)
-      read(fname, *, iostat=ios) jdbg
-      if (ios /= 0) then
-         print*,'arg2 parse error: ', trim(fname)
-         call usage
-      endif
-      !call getarg(3, fname)
-      call get_command_argument(3, fname)
    else
       call usage
    endif
@@ -89,15 +125,398 @@ program dumper
    !print*,nclab,ncheader
    !print*,clabs(1:20)
 
+   allocate(zfacem(nz+1))
    allocate(z0(nx,ny),ilandu(nx,ny),elev(nx,ny),xlai(nx,ny),nears(nx,ny))
-   allocate(uu(nx,ny,nz),vv(nx,ny,nz),ww(nx,ny,nz),tt(nx,ny,nz))
+   allocate(uu(nx,ny,nz),vv(nx,ny,nz),ww(nx,ny,nz+1),tt(nx,ny,nz))
    allocate(ipgt(nx,ny),ustar(nx,ny),zi(nx,ny),el(nx,ny),wstar(nx,ny),rmm(nx,ny), &
       tempk(nx,ny),rho(nx,ny),qsw(nx,ny),irh(nx,ny),ipcode(nx,ny))
    rewind(11)
 
-   call dmp
+   if (lncf) then
+      print*,'here'
+      call ncf(oname)
+   else
+      call dmp
+   endif
 
 contains 
+
+   subroutine ncf(oname)
+      ! https://www.unidata.ucar.edu/software/netcdf/examples/programs/
+      use netcdf
+      implicit none
+      character(len=999) :: oname
+      integer :: ncid
+      character(len=*), parameter :: lvl_name = 'Level'
+      character(len=*), parameter :: zface_name = 'Zface'
+      character(len=*), parameter :: yyy_name = 'Y'
+      character(len=*), parameter :: xxx_name = 'X'
+      character(len=*), parameter :: tim_name = 'Time'
+      character(len=*), parameter :: tnchar_name = 'DateStrLen'
+
+      integer :: lvl_dimid, yyy_dimid, xxx_dimid, tim_dimid, zface_dimid, tnchar_dimid
+
+      integer :: zface_varid, xxx_varid, yyy_varid, tim_varid
+
+      character(len=*), parameter :: units = 'units'
+      character(len=*), parameter :: xxx_units = 'm'
+      character(len=*), parameter :: yyy_units = 'm'
+
+      integer :: z0_varid, lu_varid, elev_varid, lai_varid
+
+      character(len=*), parameter :: uu_name = 'U'
+      character(len=*), parameter :: vv_name = 'V'
+      character(len=*), parameter :: ww_name = 'W'
+      character(len=*), parameter :: tt_name = 'T'
+      integer :: uu_varid, vv_varid, ww_varid, tt_varid
+      integer :: ipgt_varid, ust_varid, zi_varid, el_varid, wst_varid
+      integer :: rmm_varid, tempk_varid, rho_varid, qsw_varid, irh_varid, ipcode_varid
+
+      character(len=*), parameter :: description = 'description'
+
+      real, dimension(:), allocatable :: xxx
+      real, dimension(:), allocatable :: yyy
+
+      integer :: ic, ii, jj
+      character(len=8) :: clab0
+      character(len=19) :: tstamp, lst_tstamp
+      integer :: tdx, lst_tdx
+      integer :: status
+
+      print*,oname
+
+      read(11)dataset, dataver, datamod
+      read(11)ncom
+      do i=1,ncom
+         read(11) comment
+      enddo
+
+      ! header, scalar part
+      read(11)ibyr,ibmo,ibdy,ibhr,ibsec,ieyr,iemo,iedy,iehr,iesec,axtz,&
+              irlg,irtype,nx,ny,nz,dgrid,xorigr,yorigr,&
+              nssta,nusta,npsta,nowsta,nlu,iwat1,iwat2,lcalgrd,pmap,datum,daten,&
+              feast,fnorth,utmhem,iutmzn,rnlat0,relon0,xlat1,xlat2
+
+      ! create file
+      call check( nf90_create(oname, nf90_clobber, ncid) )
+
+      ! define dims
+      call check( nf90_def_dim( ncid, tim_name, nf90_unlimited, tim_dimid) )
+      call check( nf90_def_dim( ncid, tnchar_name, 19, tnchar_dimid) )
+      call check( nf90_def_dim( ncid, lvl_name, nz, lvl_dimid) )
+      call check( nf90_def_dim( ncid, yyy_name, ny, yyy_dimid) )
+      call check( nf90_def_dim( ncid, xxx_name, nx, xxx_dimid) )
+      call check( nf90_def_dim( ncid, zface_name, nz+1, zface_dimid) )
+
+      ! define coord vars
+      call check( nf90_def_var( ncid, xxx_name, nf90_real, xxx_dimid, xxx_varid))
+      call check( nf90_def_var( ncid, yyy_name, nf90_real, yyy_dimid, yyy_varid))
+      call check( nf90_def_var( ncid, tim_name, nf90_char, (/tnchar_dimid, tim_dimid/),  tim_varid))
+
+      call check( nf90_put_att( ncid, xxx_varid, units, xxx_units) )
+      call check( nf90_put_att( ncid, yyy_varid, units, yyy_units) )
+
+      allocate(xxx(nx), yyy(ny))
+      do ii = 1, nx
+         xxx(ii) = xorigr + (ii-1) * dgrid + .5 * dgrid
+      enddo
+      do jj = 1, ny
+         yyy(jj) = yorigr + (jj-1) * dgrid + .5 * dgrid
+      enddo
+
+
+      do ic=1,ncheader
+         clab=clabs(ic)
+         print*,clab
+         if (clab=='ZFACE') then
+            call check( nf90_def_var( ncid, trim(clab), nf90_real, zface_dimid, zface_varid))
+            call check( nf90_put_att( ncid, zface_varid, units, 'm') )
+            call check( nf90_put_att( ncid, zface_varid, description, 'heights of cell faces') )
+         elseif (clab=='Z0') then
+            call check( nf90_def_var( ncid, trim((clab)), nf90_real, (/xxx_dimid, yyy_dimid/), z0_varid))
+            call check( nf90_put_att( ncid, z0_varid, units, 'm') )
+            call check( nf90_put_att( ncid, z0_varid, description, 'surface roughness lengths') )
+         elseif (clab=='ILANDU') then
+            call check( nf90_def_var( ncid, trim((clab)), nf90_int, (/xxx_dimid, yyy_dimid/), lu_varid))
+            call check( nf90_put_att( ncid, lu_varid, description, 'land use category') )
+         elseif (clab=='ELEV') then
+            call check( nf90_def_var( ncid, trim((clab)), nf90_real, (/xxx_dimid, yyy_dimid/), elev_varid))
+            call check( nf90_put_att( ncid, elev_varid, units, 'm') )
+            call check( nf90_put_att( ncid, elev_varid, description, 'terrain elevations') )
+         elseif (clab=='XLAI') then
+            call check( nf90_def_var( ncid, trim((clab)), nf90_real, (/xxx_dimid, yyy_dimid/), lai_varid))
+            call check( nf90_put_att( ncid, lai_varid, units, 'm/m') )
+            call check( nf90_put_att( ncid, lai_varid, description, 'leaf area index') )
+         endif
+
+      enddo
+      clab0=''
+      uu_varid = 0
+      vv_varid = 0
+      ww_varid = 0
+      tt_varid = 0
+      ipgt_varid = 0
+      ust_varid = 0
+      zi_varid = 0
+      el_varid = 0
+      wst_varid = 0
+      rmm_varid = 0
+      tempk_varid = 0
+      rho_varid = 0
+      qsw_varid = 0
+      irh_varid = 0
+      ipcode_varid = 0
+      do ic=ncheader+1, nclab
+         clab=clabs(ic)
+         print*,clab
+         if (ic == ncheader+1) then
+            clab0 = clab
+         else
+            if (clab==clab0) then
+               exit
+            endif
+         endif
+
+
+
+         if (clab(1:5)=='U-LEV') then
+            !call check(  nf90_def_var( ncid, uu_name, nf90_real, (/xxx_dimid, yyy_dimid, lvl_dimid, tim_dimid/), uu_varid))
+            status =  nf90_def_var( ncid, uu_name, nf90_real, (/xxx_dimid, yyy_dimid, lvl_dimid, tim_dimid/), uu_varid)
+            !status = nf90_def_var( ncid, uu_name, nf90_real, (/tim_dimid, lvl_dimid, yyy_dimid, xxx_dimid/), uu_varid)
+            call check( nf90_put_att( ncid, uu_varid, units, 'm/s') )
+            call check( nf90_put_att( ncid, uu_varid, description, 'U-component of the winds') )
+            
+         elseif (clab(1:5)=='V-LEV') then
+            status =  nf90_def_var( ncid, vv_name, nf90_real, (/xxx_dimid, yyy_dimid, lvl_dimid, tim_dimid/), vv_varid)
+            call check( nf90_put_att( ncid, vv_varid, units, 'm/s') )
+            call check( nf90_put_att( ncid, vv_varid, description, 'V-component of the winds') )
+            
+         elseif (clab(1:5)=='WFACE') then
+            status =  nf90_def_var( ncid, ww_name, nf90_real, (/xxx_dimid, yyy_dimid, zface_dimid, tim_dimid/), ww_varid)
+            call check( nf90_put_att( ncid, ww_varid, units, 'm/s') )
+            call check( nf90_put_att( ncid, ww_varid, description, 'W-component of the winds') )
+         elseif (clab(1:5)=='T-LEV') then
+            status =  nf90_def_var( ncid, tt_name, nf90_real, (/xxx_dimid, yyy_dimid, lvl_dimid, tim_dimid/), tt_varid)
+            call check( nf90_put_att( ncid, tt_varid, units, 'K') )
+            call check( nf90_put_att( ncid, tt_varid, description, 'air temperature') )
+         elseif (clab=='IPGT') then
+            call check( nf90_def_var( ncid, trim((clab)), nf90_int, (/xxx_dimid, yyy_dimid, tim_dimid/), ipgt_varid) )
+            call check( nf90_put_att( ncid, ipgt_varid, description, 'PGT stability class') )
+         elseif (clab=='USTAR') then
+            call check( nf90_def_var( ncid, trim(clab), nf90_real, (/xxx_dimid, yyy_dimid, tim_dimid/), ust_varid) )
+            call check( nf90_put_att( ncid, ust_varid, units, 'm/s') )
+            call check( nf90_put_att( ncid, ust_varid, description, 'surface friction velocity') )
+         elseif (clab=='ZI') then
+            call check( nf90_def_var( ncid, trim(clab), nf90_real, (/xxx_dimid, yyy_dimid, tim_dimid/), zi_varid) )
+            call check( nf90_put_att( ncid, zi_varid, units, 'm') )
+            call check( nf90_put_att( ncid, zi_varid, description, 'mixing height') )
+         elseif (clab=='EL') then
+            call check( nf90_def_var( ncid, trim(clab), nf90_real, (/xxx_dimid, yyy_dimid, tim_dimid/), el_varid) )
+            call check( nf90_put_att( ncid, el_varid, units, 'm') )
+            call check( nf90_put_att( ncid, el_varid, description, 'Monin-Obukhov length') )
+         elseif (clab=='WSTAR') then
+            call check( nf90_def_var( ncid, trim(clab), nf90_real, (/xxx_dimid, yyy_dimid, tim_dimid/), wst_varid) )
+            call check( nf90_put_att( ncid, wst_varid, units, 'm/s') )
+            call check( nf90_put_att( ncid, wst_varid, description, 'convective velocity scale') )
+         elseif (clab=='RMM') then
+            call check( nf90_def_var( ncid, trim(clab), nf90_real, (/xxx_dimid, yyy_dimid, tim_dimid/), rmm_varid) )
+            call check( nf90_put_att( ncid, rmm_varid, units, 'mm/hr') )
+            call check( nf90_put_att( ncid, rmm_varid, description, 'precipitation rate') )
+         elseif (clab=='TEMPK') then
+            call check( nf90_def_var( ncid, trim(clab), nf90_real, (/xxx_dimid, yyy_dimid, tim_dimid/), tempk_varid) )
+            call check( nf90_put_att( ncid, tempk_varid, units, 'K') )
+            call check( nf90_put_att( ncid, tempk_varid, description, 'near-surface temperature') )
+         elseif (clab=='RHO') then
+            call check( nf90_def_var( ncid, trim(clab), nf90_real, (/xxx_dimid, yyy_dimid, tim_dimid/), rho_varid) )
+            call check( nf90_put_att( ncid, rho_varid, units, 'kg/m3') )
+            call check( nf90_put_att( ncid, rho_varid, description, 'near-surface air density') )
+         elseif (clab=='QSW') then
+            call check( nf90_def_var( ncid, trim(clab), nf90_real, (/xxx_dimid, yyy_dimid, tim_dimid/), qsw_varid) )
+            call check( nf90_put_att( ncid, qsw_varid, units, 'W/m2') )
+            call check( nf90_put_att( ncid, qsw_varid, description, 'short-wave solar radiation') )
+         elseif (clab=='IRH') then
+            call check( nf90_def_var( ncid, trim(clab), nf90_int, (/xxx_dimid, yyy_dimid, tim_dimid/), irh_varid) )
+            call check( nf90_put_att( ncid, irh_varid, units, '%') )
+            call check( nf90_put_att( ncid, irh_varid, description, 'near-surface relative humidity') )
+         elseif (clab=='IPCODE') then
+            call check( nf90_def_var( ncid, trim(clab), nf90_int, (/xxx_dimid, yyy_dimid, tim_dimid/), ipcode_varid) )
+            call check( nf90_put_att( ncid, ipcode_varid, description, 'precipitation type code') )
+         endif
+      enddo
+
+      call check( nf90_enddef(ncid) )
+
+      call check( nf90_put_var( ncid, xxx_varid, xxx ) )
+      call check( nf90_put_var( ncid, yyy_varid, yyy ) )
+
+      do ic=1,ncheader
+         clab=clabs(ic)
+         if (clab=='ZFACE') then
+            read(11) clab, idum(1:4), zfacem
+            call check( nf90_put_var( ncid, zface_varid, zfacem ) )
+         elseif (clab=='Z0') then
+            read(11)clab,idum(1:4),z0
+            call check( nf90_put_var( ncid, z0_varid, z0 ) )
+         elseif (clab=='ILANDU') then
+            read(11)clab,idum(1:4),ilandu
+            call check( nf90_put_var( ncid, lu_varid, ilandu ) )
+         elseif (clab=='ELEV') then
+            read(11)clab,idum(1:4),elev
+            call check( nf90_put_var( ncid, elev_varid, elev ) )
+         elseif (clab=='XLAI') then
+            read(11)clab,idum(1:4),xlai
+            call check( nf90_put_var( ncid, lai_varid, xlai ) )
+         endif
+      enddo
+
+      print*,'xxxxxx'
+
+      lst_tstamp = ''
+      lst_tdx = 0
+      do ic=ncheader+1, nclab
+         clab=clabs(ic)
+         print*,clab
+         if (clab(1:5) == 'U-LEV') then
+            read(clab(6:8),*)k
+            read(11)clab,idum(1:4),uu(:,:,k)
+            !print*,clab, idum(1:2)
+            call cmtime_to_tstamp(idum(1), idum(2), tstamp)
+
+            if (tstamp /= lst_tstamp) then
+               !newtime
+               print*,'newtime'
+               tdx = lst_tdx + 1
+
+               if (lst_tstamp /= '') then
+                  print*, 'tim', tstamp
+                  call check (nf90_put_var( ncid, tim_varid, tstamp, start=(/1, lst_tdx/)))
+                  ! write values
+                  if (uu_varid /= 0) then
+                     call check (nf90_put_var( ncid, uu_varid, uu, start=(/1,1,1, lst_tdx/)) )
+                  endif
+                  if (vv_varid /= 0) then
+                     call check (nf90_put_var( ncid, vv_varid, vv, start=(/1,1,1, lst_tdx/)) )
+                  endif
+                  if (ww_varid /= 0) then
+                     call check (nf90_put_var( ncid, ww_varid, ww, start=(/1,1,1, lst_tdx/)) )
+                  endif
+                  if (tt_varid /= 0) then
+                     call check (nf90_put_var( ncid, tt_varid, tt, start=(/1,1,1, lst_tdx/)) )
+                  endif
+                  if (ipgt_varid /= 0) then
+                     call check (nf90_put_var( ncid, ipgt_varid, ipgt, start=(/1,1, lst_tdx/)) )
+                  endif
+                  if (ust_varid /= 0) then
+                     call check (nf90_put_var( ncid, ust_varid, ustar, start=(/1,1, lst_tdx/)) )
+                  endif
+                  if (zi_varid /= 0) then
+                     call check (nf90_put_var( ncid, zi_varid, zi, start=(/1,1, lst_tdx/)) )
+                  endif
+                  if (el_varid /= 0) then
+                     call check (nf90_put_var( ncid, el_varid, el, start=(/1,1, lst_tdx/)) )
+                  endif
+                  if (wst_varid /= 0) then
+                     call check (nf90_put_var( ncid, wst_varid, wstar, start=(/1,1, lst_tdx/)) )
+                  endif
+                  if (rmm_varid /= 0) then
+                     call check (nf90_put_var( ncid, rmm_varid, rmm, start=(/1,1, lst_tdx/)) )
+                  endif
+                  if (tempk_varid /= 0) then
+                     call check (nf90_put_var( ncid, tempk_varid, tempk, start=(/1,1, lst_tdx/)) )
+                  endif
+                  if (rho_varid /= 0) then
+                     call check (nf90_put_var( ncid, rho_varid, rho, start=(/1,1, lst_tdx/)) )
+                  endif
+                  if (qsw_varid /= 0) then
+                     call check (nf90_put_var( ncid, qsw_varid, qsw, start=(/1,1, lst_tdx/)) )
+                  endif
+                  if (irh_varid /= 0) then
+                     call check (nf90_put_var( ncid, irh_varid, irh, start=(/1,1, lst_tdx/)) )
+                  endif
+                  if (ipcode_varid /= 0) then
+                     call check (nf90_put_var( ncid, ipcode_varid, ipcode, start=(/1,1, lst_tdx/)) )
+                  endif
+                  call check( nf90_close( ncid))
+                  stop
+               endif
+               lst_tstamp = tstamp
+               lst_tdx = tdx
+            endif
+
+         elseif (clab(1:5) == 'V-LEV') then
+            read(clab(6:8),*)k
+            read(11)clab,idum(1:4),vv(:,:,k)
+            !print*,clab, idum(1:2)
+         elseif (clab(1:5) == 'WFACE') then
+            read(clab(6:8),*)k
+            read(11)clab,idum(1:4),ww(:,:,k)
+            !print*,clab, idum(1:2)
+         elseif (clab(1:5) == 'T-LEV') then
+            read(clab(6:8),*)k
+            read(11)clab,idum(1:4),tt(:,:,k)
+         elseif (clab(1:5) == 'IPGT') then
+            read(11)clab,idum(1:4),ipgt
+         elseif (clab(1:5) == 'USTAR') then
+            read(11)clab,idum(1:4),ustar
+         elseif (clab(1:5) == 'ZI') then
+            read(11)clab,idum(1:4),zi
+         elseif (clab(1:5) == 'EL') then
+            read(11)clab,idum(1:4),el
+         elseif (clab(1:5) == 'WSTAR') then
+            read(11)clab,idum(1:4),wstar
+         elseif (clab(1:5) == 'RMM') then
+            read(11)clab,idum(1:4),rmm
+         elseif (clab(1:5) == 'TEMPK') then
+            read(11)clab,idum(1:4),tempk
+         elseif (clab(1:5) == 'RHO') then
+            read(11)clab,idum(1:4),rho
+         elseif (clab(1:5) == 'QSW') then
+            read(11)clab,idum(1:4),qsw
+         elseif (clab(1:5) == 'IRH') then
+            read(11)clab,idum(1:4),irh
+         elseif (clab(1:6) == 'IPCODE') then
+            read(11)clab,idum(1:4),ipcode
+         else
+            print*,'sssss'
+            stop
+         endif
+      enddo
+
+
+      
+      call check( nf90_close( ncid))
+   end subroutine
+
+   subroutine cmtime_to_tstamp(idh, isec, tstamp)
+      implicit none
+      integer, intent(in) :: idh, isec
+      character(len=19), intent(out) :: tstamp
+      integer, dimension(13), parameter :: jdays_leap = (/ &
+         0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366 &
+         /)
+      integer, dimension(13), parameter :: jdays_regular = (/ &
+         0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365 &
+         /)
+      integer :: iyr, ijul, ihr,  imn, isc, imo, idy
+
+      iyr = (idh / 100000)
+      ijul = ( idh - iyr * 100000 ) / 100
+      ihr = mod(idh , 100)
+      imn = isec / 60
+      isc = mod(isec , 60)
+
+      if ( mod(iyr , 4) == 9) then
+         imo=findloc(ijul < jdays_leap, .true., dim=1) - 1
+         idy = ijul - jdays_leap(imo)
+      else
+         imo=findloc(ijul < jdays_regular, .true., dim=1) - 1
+         idy = ijul - jdays_regular(imo)
+      endif
+
+
+      write(tstamp, "(i4, '-', i2.2, '-', i2.2,'_', i2.2, ':', i2.2, ':', i2.2 )") iyr, imo, idy, ihr, imn, isc
+
+   end subroutine
 
    subroutine scn
       integer :: ic, ios, i
@@ -248,10 +667,8 @@ contains
             print*, 'unknown clab (header):', clab
             stop
          endif
-
-
-
       enddo
+
       do ic=ncheader+1, nclab
          clab=clabs(ic)
          !print*,ic,clab
@@ -521,6 +938,64 @@ contains
       print*, 'second method prompt further input from STDIN, and create csv format output'
       stop
    end subroutine
+   subroutine check(status)
+      use netcdf
+      IMPLICIT NONE
+      !---------------------------------------------------------------------
+      integer(4), intent ( in) :: status
+      !
+      !- End of header -----------------------------------------------------
+      !---------------------------------------------------------------------
+      ! Subroutine Body
+      !---------------------------------------------------------------------
+
+      if(status /= nf90_noerr) then 
+         print *, trim(nf90_strerror(status)) 
+         stop "Stopped" 
+      end if 
+   end subroutine check
+
+
+   Pure Function to_upper (str) Result (string) 
+      !   ==============================
+      !   Changes a string to upper case
+      !   ============================== 
+      Implicit None 
+      Character(*), Intent(In) :: str 
+      Character(LEN(str))      :: string
+     
+      Integer :: ic, i 
+      
+      Character(26), Parameter :: cap = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 
+      Character(26), Parameter :: low = 'abcdefghijklmnopqrstuvwxyz' 
+      
+      !   Capitalize each letter if it is lowecase 
+      string = str 
+      do i = 1, LEN_TRIM(str) 
+        ic = INDEX(low, str(i:i)) 
+        if (ic > 0) string(i:i) = cap(ic:ic) 
+     end do 
+  End Function to_upper
+   Pure Function to_lower (str) Result (string) 
+      !   ==============================
+      !   Changes a string to upper case
+      !   ============================== 
+      Implicit None 
+      Character(*), Intent(In) :: str 
+      Character(LEN(str))      :: string
+     
+      Integer :: ic, i 
+      
+      Character(26), Parameter :: cap = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 
+      Character(26), Parameter :: low = 'abcdefghijklmnopqrstuvwxyz' 
+      
+      !   Capitalize each letter if it is lowecase 
+      string = str 
+      do i = 1, LEN_TRIM(str) 
+        ic = INDEX(cap, str(i:i)) 
+        if (ic > 0) string(i:i) = low(ic:ic) 
+     end do 
+  End Function to_lower
 
 end program
 
