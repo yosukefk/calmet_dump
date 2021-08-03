@@ -68,6 +68,16 @@ V-LEV   ,201926107,   0,201926108,   0,   2,   3,   1,-0.2298859E+01
 $ 
 ```
 
+### 3. netCDF format
+
+The command below creates `m3dfile.nc` which has most of data from m3d fie
+
+`calmet_dump -n m3dfile.m3d`
+
+or below, if you want to use different name (or location)
+
+`calmet_dump -n m3dfile.m3d name_that_i_want.nc`
+
 ## Next
 
-Obviously this is not nicest interface.  It would probably make more sense to write a code to convert into NetCDF format or something that user can do whatever.  But i am OK with this for now.
+netcdf file lacks dataset level attributes, such as projection information, grid information etc.  I may get back to it if i need them for some reason...
